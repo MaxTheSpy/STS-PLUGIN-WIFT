@@ -1,5 +1,14 @@
-# Wifi File Transfer (WIFT)
+<div align="center">
 
-This plugin allows you to run a lightweight temporary flask web server on your local network so that you can transfer files over WiFi to any phone, tablet or PC on your local network. Simply launch SimpleToolSuite, launch the WiFi file transfer plugin, start the server and visit the provided web address and you can select one or more files to upload. 
+  <p align="center">
+    <img src="https://github.com/MaxTheSpy/STS-PLUGIN-WIFT/blob/main/WIFT_Header.png" alt="Your Logo" width="400">
+  </p>
 
-You can delete and download files either from the plugin page or from the web page. This is helpful when transferring files from your phone to your tablet, otherwise you can simply launch the server, and use the built in delete and download functions from within the plugin.
+![Issues](https://img.shields.io/github/issues/MaxTheSpy/STS-PLUGIN-WIFT)
+![Stars](https://img.shields.io/github/stars/MaxTheSpy/STS-PLUGIN-WIFT)
+![Downloads](https://img.shields.io/github/downloads/MaxTheSpy/STS-PLUGIN-WIFT/total)
+![License](https://img.shields.io/github/license/MaxTheSpy/STS-PLUGIN-WIFT)
+
+[Join Discord](https://discord.gg/DYs69z6WtJ) · [Report Bug](https://github.com/MaxTheSpy/STS-PLUGIN-WIFT/issues/new)
+
+</div>
