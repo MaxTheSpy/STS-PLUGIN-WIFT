@@ -1,5 +1,4 @@
 <div align="center">
-
   <p align="center">
     <img src="https://github.com/MaxTheSpy/STS-PLUGIN-WIFT/blob/main/WIFT_Header.png" alt="Your Logo" width="400">
   </p>
@@ -10,7 +9,6 @@
 ![License](https://img.shields.io/github/license/MaxTheSpy/STS-PLUGIN-WIFT)
 
 [Join Discord](https://discord.gg/DYs69z6WtJ) · [Report Bug](https://github.com/MaxTheSpy/STS-PLUGIN-WIFT/issues/new)
-
 </div>
 
 # About
