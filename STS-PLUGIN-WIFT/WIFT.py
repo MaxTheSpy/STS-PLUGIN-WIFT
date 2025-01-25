@@ -2,6 +2,7 @@ import os
 import shutil
 import threading
 import webbrowser
+import logging
 from flask import Flask, request, render_template, send_from_directory, redirect, url_for
 from PyQt5 import QtWidgets, uic, QtCore
 from PyQt5.QtWidgets import QMessageBox, QTableWidgetItem
@@ -28,11 +29,12 @@ class ControlledFlaskServer:
             self.server = None
             self.thread = None
 
-
 class WIFTPlugin(QtWidgets.QWidget):
-    file_added = pyqtSignal() 
-    def __init__(self, parent=None):
+    file_added = pyqtSignal()
+
+    def __init__(self, parent=None, logger=None):
         super().__init__(parent)
+        self.logger = logger or logging.getLogger("WIFTPlugin")
         self.server_running = threading.Event()
         self.app = Flask(
             __name__,
@@ -45,6 +47,7 @@ class WIFTPlugin(QtWidgets.QWidget):
         self.file_added.connect(self.update_file_table)
         self.setup_ui()
         self.configure_routes()
+        self.logger.info("Wi-Fi File Transfer Plugin initialized.")
 
     def setup_ui(self):
         try:
@@ -61,23 +64,13 @@ class WIFTPlugin(QtWidgets.QWidget):
             # Set up the table
             self.file_table.setColumnCount(3)
             self.file_table.setHorizontalHeaderLabels(["Filename", "Type", "Actions"])
-
-
-            # Configure column resize modes
-            self.file_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)  # Filename expands
-            self.file_table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)  # Type adjusts to content
-            self.file_table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeToContents)  # Actions adjusts to content
-
-            # Enforce minimum widths using the horizontal header
-            self.file_table.horizontalHeader().setMinimumSectionSize(75)  # Set a global minimum for all columns (optional)
-            self.file_table.horizontalHeader().resizeSection(1, 100)  # Type column minimum width
-            self.file_table.horizontalHeader().resizeSection(2, 200)  # Actions column minimum width
-
-            self.file_table.horizontalHeader().setStretchLastSection(False)
+            self.file_table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+            self.file_table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
+            self.file_table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeToContents)
             self.update_status("Stopped", "red")
             self.update_file_table()
-
         except Exception as e:
+            self.logger.error(f"Error setting up the UI: {str(e)}")
             QMessageBox.critical(self, "UI Setup Error", f"Error setting up the UI: {str(e)}")
             raise
 
@@ -93,7 +86,9 @@ class WIFTPlugin(QtWidgets.QWidget):
             if file and file.filename:
                 file.save(os.path.join(self.temp_dir, file.filename))
                 QtCore.QMetaObject.invokeMethod(self, "file_added", QtCore.Qt.QueuedConnection)
+                self.logger.info(f"File uploaded: {file.filename}")
                 return redirect(url_for('index'))
+            self.logger.warning("No file selected for upload.")
             return "No file selected", 400
 
         @self.app.route('/download/<filename>')
@@ -105,8 +100,10 @@ class WIFTPlugin(QtWidgets.QWidget):
             file_path = os.path.join(self.temp_dir, filename)
             if os.path.exists(file_path):
                 os.remove(file_path)
-                self.file_added.emit()  # Update the file table via signal
+                self.file_added.emit()
+                self.logger.info(f"File deleted: {filename}")
                 return redirect(url_for('index'))
+            self.logger.warning(f"File not found for deletion: {filename}")
             return "File not found", 404
 
     def toggle_server(self):
@@ -124,29 +121,31 @@ class WIFTPlugin(QtWidgets.QWidget):
             self.update_status("Running", "green")
             self.server_running.set()
             self.flask_server.start()
+            self.logger.info("Flask server started.")
         except Exception as e:
             self.update_status("Problem!", "orange")
-            print(f"Server Error: {e}")
+            self.logger.error(f"Error starting Flask server: {e}")
             self.server_running.clear()
 
     def stop_server(self):
-        """Stop the Flask server if it is running."""
         if self.server_running.is_set():
             self.flask_server.stop()
             self.server_running.clear()
             self.update_status("Stopped", "red")
             self.display_url.clear()
-            print("Flask server stopped.")
+            self.logger.info("Flask server stopped.")
 
     def open_website(self):
         url = self.display_url.text()
         if url:
             webbrowser.open(url)
+            self.logger.info(f"Opened website: {url}")
         else:
             QMessageBox.warning(self, "Error", "No URL to open!")
+            self.logger.warning("Attempted to open website, but URL was empty.")
 
     def update_file_table(self):
-        self.file_table.setRowCount(0)  # Clear the table
+        self.file_table.setRowCount(0)
         for filename in os.listdir(self.temp_dir):
             row_position = self.file_table.rowCount()
             self.file_table.insertRow(row_position)
@@ -165,32 +164,34 @@ class WIFTPlugin(QtWidgets.QWidget):
             self.file_table.setCellWidget(row_position, 2, button_widget)
 
     def handle_download(self, filename):
-        """Handle file download from the table."""
         file_path = os.path.join(self.temp_dir, filename)
         if os.path.exists(file_path):
             dest = os.path.join(os.path.expanduser("~"), "Downloads", filename)
             shutil.copy(file_path, dest)
             QMessageBox.information(self, "Download", f"File downloaded to {dest}")
+            self.logger.info(f"File downloaded: {filename} to {dest}")
         else:
             QMessageBox.warning(self, "Download Error", "File not found!")
+            self.logger.warning(f"Attempted to download missing file: {filename}")
 
     def handle_delete(self, filename):
-        """Handle file deletion from the table."""
         file_path = os.path.join(self.temp_dir, filename)
         if os.path.exists(file_path):
             os.remove(file_path)
-            self.file_added.emit()  # Update the file table via signal
+            self.file_added.emit()
             QMessageBox.information(self, "Delete", f"File '{filename}' deleted.")
+            self.logger.info(f"File deleted: {filename}")
         else:
             QMessageBox.warning(self, "Delete Error", "File not found!")
+            self.logger.warning(f"Attempted to delete missing file: {filename}")
 
     def cleanup_temp_files(self):
         for filename in os.listdir(self.temp_dir):
             try:
                 os.remove(os.path.join(self.temp_dir, filename))
+                self.logger.info(f"Temporary file cleaned up: {filename}")
             except OSError as e:
-                print(f"Error deleting file {filename}: {e}")
-
+                self.logger.error(f"Error deleting temporary file {filename}: {e}")
 
     def update_status(self, status, color):
         self.label_status.setText(status)
@@ -208,13 +209,16 @@ class WIFTPlugin(QtWidgets.QWidget):
             s.close()
 
     def hideEvent(self, event):
-        """Override hideEvent to stop Flask server when tab is closed."""
         self.stop_server()
         super().hideEvent(event)
 
-def main(parent_widget):
+def main(parent_widget=None, parent_logger=None):
     try:
-        return WIFTPlugin(parent_widget)
+        logger = parent_logger.getChild("WIFT") if parent_logger else logging.getLogger("WIFT")
+        logger.info("Initializing Wi-Fi File Transfer Plugin.")
+        return WIFTPlugin(parent_widget, logger)
     except Exception as e:
-        QMessageBox.critical(None, "Plugin Error", f"Failed to load Wi-Fi File Transfer plugin: {str(e)}")
+        if parent_logger:
+            parent_logger.error(f"Failed to load Wi-Fi File Transfer Plugin: {e}")
+        QMessageBox.critical(None, "Plugin Error", f"Failed to load Wi-Fi File Transfer Plugin: {str(e)}")
         return None
